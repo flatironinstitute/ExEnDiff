@@ -1,0 +1,160 @@
+_target_: src.models.diffusion_module.DiffusionLitModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 1e-4
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: min
+  factor: 0.1
+  patience: 10
+
+net:
+  _target_: src.models.net.denoising_ipa.DenoisingNet
+  embedder:
+    _target_: src.models.net.denoising_ipa.EmbeddingModule
+    init_embed_size: 32
+    node_embed_size: 256
+    edge_embed_size: 128
+    num_bins: 22
+    min_bin: 1e-5
+    max_bin: 20.0
+    self_conditioning: true
+  translator:
+    _target_: src.models.net.ipa.TranslationIPA
+    c_s: 256
+    c_z: 128
+    coordinate_scaling: 0.1
+    no_ipa_blocks: 4
+    skip_embed_size: 64
+    transformer_num_heads: 4
+    transformer_num_layers: 2
+    c_hidden: 256
+    no_heads: 8
+    no_qk_points: 8
+    no_v_points: 12
+    dropout: 0.0
+
+diffuser:
+  _target_: src.models.score.frame.FrameDiffuser
+  trans_diffuser:
+    _target_: src.models.score.r3.R3Diffuser
+    min_b: 0.1
+    max_b: 20.0
+    coordinate_scaling: 0.1
+  rot_diffuser:
+    _target_: src.models.score.so3.SO3Diffuser
+    num_omega: 1000
+    num_sigma: 1000
+    min_sigma: 0.1
+    max_sigma: 1.5
+    schedule: logarithmic
+    cache_dir: ${paths.cache_dir}
+    use_cached_score: False
+  min_t: 1e-2
+
+loss:
+  translation:
+    weight: 1.0
+    coordinate_scaling: 0.1
+    x0_threshold: 1.0
+  rotation:
+    weight: 1.0
+  distogram:
+    enabled: false
+  supervised_chi:
+    enabled: false
+  lddt:
+    enabled: false
+  fape:
+    enabled: false
+  tm:
+    enabled: false
+  backbone:
+    enabled: true
+    weight: 0.25
+    t_threshold: 0.25
+  pwd:
+    enabled: true
+    weight: 0.25
+    t_threshold: 0.25
+  eps: 1e-6
+
+# default hparam for sampling s2011
+inference:
+  delta_min: 0.25
+  delta_max: 0.70
+  delta_step: 0.05
+  n_replica: 10
+  replica_per_batch: 100
+  num_timesteps: 500
+  noise_scale: 1.0
+  probability_flow: False
+  self_conditioning: True
+  min_t: 1e-2
+  output_dir: ${paths.output_dir}/samples
+  backward_only: True
+
+
+
+  protein_name: "PaaA2"
+  use_save_pickle: 1
+  save_pickle_loc: "path/to/X-EnDiff/data/experiment_samples/GMM_save_list"
+  conditional_noise: [1]
+
+
+  multi_operator_flag: True
+  multi_operator_choice: [1,4]
+  conditional_multi_operator: ["eed_operator",
+                               "rg_operator",
+                               "rmsd_operator",
+                               "dssp_operator",
+                               "helix_dist_operator",
+                               "helix_rmsd_operator",
+                               "beta_rmsd_operator",
+                               "cryoem_operator"]
+  conditional_multi_GMM_mean: [[30.17954171, 45.45583015],
+                               [12.82459221,16.0353092],
+                               [9.3079198,5.77324943],
+                               [],
+                               [],
+                               [],
+                               [],
+                               []]
+  conditional_multi_GMM_weight: [[0.44999882,0.55000118],
+                                 [0.42513549, 0.57486451],
+                                 [0.34499214, 0.65500786],
+                                 [],
+                                 [],
+                                 [],
+                                 [],
+                                 []]
+  conditional_multi_GMM_variance: [[63.93797453,55.68692131],
+                                   [3.31156827,2.63921274],
+                                   [4.77270778,1.552738],
+                                   [],
+                                   [],
+                                   [],
+                                   [],
+                                   []]
+  conditional_multi_noise: [1,1]
+
+  conditional_GMM_use_random_indice: [1,1,1,1,1,1,1,1]
+  conditional_GMM_use_prev_sample: [0,0,0,1,1,1,1,1]
+  conditional_GMM_use_prev_sample_loc: ["",
+                                        "",
+                                        "",
+                                        "path/to/X_EnDiff/data/experiment_samples/protein_name/dssp.npy",
+                                        "path/to/X-EnDiff/data/experiment_samples/protein_name/helix_34_raw.npy",
+                                        "path/to/X_EnDiff/data/experiment_samples/protein_name/helix_rmsd.npy",
+                                        "path/to/X_EnDiff/data/experiment_samples/protein_name/beta_rmsd.npy",
+                                        "path/to/X_EnDiff/data/experiment_samples/protein_name/cryo_em.npy"]
+
+
+
+# compile model for faster training with pytorch 2.0
+compile: false
